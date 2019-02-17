@@ -7,10 +7,15 @@ import ctypes
 import socket
 import argparse
 
+import requests
+
 from Downloader import StartDownload
 from Packet.Reader import CoCMessageReader
 from Packet.Writer import Write
 from Packet.PreAuth import PreAuth
+
+
+CLIENT_VERSION = '1.41.17'
 
 
 def recvall(sock, size):
@@ -27,7 +32,6 @@ def recvall(sock, size):
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Download assets from official servers')
     parser.add_argument('-s', '--specific', help='Download only files with specified extension', type=str, nargs='+', default=[])
     parser.add_argument('-d', '--decompress', help='Decompress .csv and .sc files (tex.sc included)', action='store_true')
@@ -38,12 +42,11 @@ if __name__ == '__main__':
 
     if os.name == "nt":
         ctypes.windll.kernel32.SetConsoleTitleW("Starting download")
-
     else:
         sys.stdout.write("\x1b]2;Starting download\x07")
 
     s = socket.socket()
-    s.connect(('game.clashroyaleapp.com', 9339))
+    s.connect(('game.haydaygame.com', 9339))
     s.send(Write(PreAuth))
 
     header = s.recv(7)
@@ -54,26 +57,24 @@ if __name__ == '__main__':
     data = recvall(s, size)
     Reader = CoCMessageReader(data)
 
-    if Reader.read_rrsint32() == 7:
+    if Reader.read_int() == 7:
         print('[*] FingerPrint has been received')
-
     else:
         print('[*] PreAuth packet is outdated , please get the latest one on GaLaXy1036 Github !')
         sys.exit()
 
     fingerprint = Reader.read_string()
     Reader.read_string()  # null
-    Reader.read_string()  # null
-    Reader.read_string()  # null
-    Reader.read_rrsint32()
     Reader.read_byte()
+    Reader.read_int()
     Reader.read_string()  # null
-    Reader.read_rrsint32()
-    Reader.read_string()  # Event Assets Url
-    assetsUrl = Reader.read_string()
+    Reader.read_byte()
+    Reader.read_byte()
 
     Json = json.loads(fingerprint)
 
     print('[INFO] Version = {}, MasterHash = {}'.format(Json['version'], Json['sha']))
 
-    StartDownload(assetsUrl, Json, args)
+    r = requests.get('http://gamea.haydaygame.com:8080/env_settings?version=%s&platform=android&store=2' % CLIENT_VERSION)
+    resp = r.json()
+    StartDownload(resp['assetUrl'][:-1], Json, args)

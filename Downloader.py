@@ -75,7 +75,6 @@ class Downloader(Thread):
         else:
             try:
                 file = urlopen(fileUrl)
-
             except:
                 print('[*] Error while downloading {}'.format(fileUrl.split('/')[-1]))
 
